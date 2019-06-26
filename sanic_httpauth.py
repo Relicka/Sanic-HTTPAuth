@@ -8,14 +8,15 @@ This module provides Basic and Digest HTTP authentication for Flask routes.
 :license:   MIT, see LICENSE for more details.
 """
 
+import sanic.response
 from functools import wraps
 from hashlib import md5
 from random import Random, SystemRandom
-from flask import request, make_response, session
-from werkzeug.datastructures import Authorization
-from werkzeug.security import safe_str_cmp
+from sanic_httpauth_compat import safe_str_cmp, make_response, Authorization
 
-__version__ = '3.3.1dev'
+__version__ = "3.3.1dev"
+
+# Compatibility code added to facilitate merging of upstream changes
 
 
 class HTTPAuth(object):
@@ -28,7 +29,7 @@ class HTTPAuth(object):
         def default_get_password(username):
             return None
 
-        def default_auth_error():
+        def default_auth_error(request):
             return "Unauthorized Access"
 
         self.get_password(default_get_password)
@@ -40,34 +41,33 @@ class HTTPAuth(object):
 
     def error_handler(self, f):
         @wraps(f)
-        def decorated(*args, **kwargs):
-            res = f(*args, **kwargs)
+        def decorated(request, *args, **kwargs):
+            res = f(request, *args, **kwargs)
             res = make_response(res)
-            if res.status_code == 200:
+            if res.status == 200:
                 # if user didn't set status code, use 401
-                res.status_code = 401
-            if 'WWW-Authenticate' not in res.headers.keys():
-                res.headers['WWW-Authenticate'] = self.authenticate_header()
+                res.status = 401
+            if "WWW-Authenticate" not in res.headers.keys():
+                res.headers["WWW-Authenticate"] = self.authenticate_header(request)
             return res
+
         self.auth_error_callback = decorated
         return decorated
 
-    def authenticate_header(self):
+    def authenticate_header(self, request):
         return '{0} realm="{1}"'.format(self.scheme, self.realm)
 
-    def get_auth(self):
-        auth = request.authorization
-        if auth is None and 'Authorization' in request.headers:
-            # Flask/Werkzeug do not recognize any authentication types
-            # other than Basic or Digest, so here we parse the header by
-            # hand
-            try:
-                auth_type, token = request.headers['Authorization'].split(
-                    None, 1)
-                auth = Authorization(auth_type, {'token': token})
-            except ValueError:
-                # The Authorization header is either empty or has no token
-                pass
+    def get_auth(self, request):
+        if "Authorization" not in request.headers:
+            return None
+
+        auth = None
+        try:
+            auth_type, token = request.headers["Authorization"].split(None, 1)
+            auth = Authorization(auth_type, {"token": token})
+        except ValueError:
+            # The Authorization header is either empty or has no token
+            pass
 
         # if the auth type does not match, we act as if there is no auth
         # this is better than failing directly, as it allows the callback
@@ -87,22 +87,21 @@ class HTTPAuth(object):
 
     def login_required(self, f):
         @wraps(f)
-        def decorated(*args, **kwargs):
-            auth = self.get_auth()
+        def decorated(request, *args, **kwargs):
+            auth = self.get_auth(request)
 
             # Flask normally handles OPTIONS requests on its own, but in the
             # case it is configured to forward those to the application, we
             # need to ignore authentication headers and let the request through
             # to avoid unwanted interactions with CORS.
-            if request.method != 'OPTIONS':  # pragma: no cover
+            if request.method != "OPTIONS":  # pragma: no cover
                 password = self.get_auth_password(auth)
 
-                if not self.authenticate(auth, password):
-                    # Clear TCP receive buffer of any pending data
-                    request.data
-                    return self.auth_error_callback()
+                if not self.authenticate(request, auth, password):
+                    return self.auth_error_callback(request)
 
-            return f(*args, **kwargs)
+            return f(request, *args, **kwargs)
+
         return decorated
 
     def username(self):
@@ -113,7 +112,7 @@ class HTTPAuth(object):
 
 class HTTPBasicAuth(HTTPAuth):
     def __init__(self, scheme=None, realm=None):
-        super(HTTPBasicAuth, self).__init__(scheme or 'Basic', realm)
+        super(HTTPBasicAuth, self).__init__(scheme or "Basic", realm)
 
         self.hash_password_callback = None
         self.verify_password_callback = None
@@ -126,7 +125,7 @@ class HTTPBasicAuth(HTTPAuth):
         self.verify_password_callback = f
         return f
 
-    def authenticate(self, auth, stored_password):
+    def authenticate(self, request, auth, stored_password):
         if auth:
             username = auth.username
             client_password = auth.password
@@ -141,16 +140,17 @@ class HTTPBasicAuth(HTTPAuth):
             try:
                 client_password = self.hash_password_callback(client_password)
             except TypeError:
-                client_password = self.hash_password_callback(username,
-                                                              client_password)
-        return client_password is not None and \
-            stored_password is not None and \
-            safe_str_cmp(client_password, stored_password)
+                client_password = self.hash_password_callback(username, client_password)
+        return (
+            client_password is not None
+            and stored_password is not None
+            and safe_str_cmp(client_password, stored_password)
+        )
 
 
 class HTTPDigestAuth(HTTPAuth):
     def __init__(self, scheme=None, realm=None, use_ha1_pw=False):
-        super(HTTPDigestAuth, self).__init__(scheme or 'Digest', realm)
+        super(HTTPDigestAuth, self).__init__(scheme or "Digest", realm)
         self.use_ha1_pw = use_ha1_pw
         self.random = SystemRandom()
         try:
@@ -164,24 +164,24 @@ class HTTPDigestAuth(HTTPAuth):
         self.verify_opaque_callback = None
 
         def _generate_random():
-            return md5(str(self.random.random()).encode('utf-8')).hexdigest()
+            return md5(str(self.random.random()).encode("utf-8")).hexdigest()
 
-        def default_generate_nonce():
-            session["auth_nonce"] = _generate_random()
-            return session["auth_nonce"]
+        def default_generate_nonce(request):
+            request["session"]["auth_nonce"] = _generate_random()
+            return request["session"]["auth_nonce"]
 
-        def default_verify_nonce(nonce):
-            session_nonce = session.get("auth_nonce")
+        def default_verify_nonce(request, nonce):
+            session_nonce = request["session"].get("auth_nonce")
             if nonce is None or session_nonce is None:
                 return False
             return safe_str_cmp(nonce, session_nonce)
 
-        def default_generate_opaque():
-            session["auth_opaque"] = _generate_random()
-            return session["auth_opaque"]
+        def default_generate_opaque(request):
+            request["session"]["auth_opaque"] = _generate_random()
+            return request["session"]["auth_opaque"]
 
-        def default_verify_opaque(opaque):
-            session_opaque = session.get("auth_opaque")
+        def default_verify_opaque(request, opaque):
+            session_opaque = request["session"].get("auth_opaque")
             if opaque is None or session_opaque is None:
                 return False
             return safe_str_cmp(opaque, session_opaque)
@@ -207,47 +207,53 @@ class HTTPDigestAuth(HTTPAuth):
         self.verify_opaque_callback = f
         return f
 
-    def get_nonce(self):
-        return self.generate_nonce_callback()
+    def get_nonce(self, request):
+        return self.generate_nonce_callback(request)
 
-    def get_opaque(self):
-        return self.generate_opaque_callback()
+    def get_opaque(self, request):
+        return self.generate_opaque_callback(request)
 
     def generate_ha1(self, username, password):
         a1 = username + ":" + self.realm + ":" + password
-        a1 = a1.encode('utf-8')
+        a1 = a1.encode("utf-8")
         return md5(a1).hexdigest()
 
-    def authenticate_header(self):
-        nonce = self.get_nonce()
-        opaque = self.get_opaque()
+    def authenticate_header(self, request):
+        nonce = self.get_nonce(request)
+        opaque = self.get_opaque(request)
         return '{0} realm="{1}",nonce="{2}",opaque="{3}"'.format(
-            self.scheme, self.realm, nonce,
-            opaque)
+            self.scheme, self.realm, nonce, opaque
+        )
 
-    def authenticate(self, auth, stored_password_or_ha1):
-        if not auth or not auth.username or not auth.realm or not auth.uri \
-                or not auth.nonce or not auth.response \
-                or not stored_password_or_ha1:
+    def authenticate(self, request, auth, stored_password_or_ha1):
+        if (
+            not auth
+            or not auth.username
+            or not auth.realm
+            or not auth.uri
+            or not auth.nonce
+            or not auth.response
+            or not stored_password_or_ha1
+        ):
             return False
-        if not(self.verify_nonce_callback(auth.nonce)) or \
-                not(self.verify_opaque_callback(auth.opaque)):
+        if not (self.verify_nonce_callback(request, auth.nonce)) or not (
+            self.verify_opaque_callback(request, auth.opaque)
+        ):
             return False
         if self.use_ha1_pw:
             ha1 = stored_password_or_ha1
         else:
-            a1 = auth.username + ":" + auth.realm + ":" + \
-                stored_password_or_ha1
-            ha1 = md5(a1.encode('utf-8')).hexdigest()
+            a1 = auth.username + ":" + auth.realm + ":" + stored_password_or_ha1
+            ha1 = md5(a1.encode("utf-8")).hexdigest()
         a2 = request.method + ":" + auth.uri
-        ha2 = md5(a2.encode('utf-8')).hexdigest()
+        ha2 = md5(a2.encode("utf-8")).hexdigest()
         a3 = ha1 + ":" + auth.nonce + ":" + ha2
-        response = md5(a3.encode('utf-8')).hexdigest()
+        response = md5(a3.encode("utf-8")).hexdigest()
         return safe_str_cmp(response, auth.response)
 
 
 class HTTPTokenAuth(HTTPAuth):
-    def __init__(self, scheme='Bearer', realm=None):
+    def __init__(self, scheme="Bearer", realm=None):
         super(HTTPTokenAuth, self).__init__(scheme, realm)
 
         self.verify_token_callback = None
@@ -256,9 +262,9 @@ class HTTPTokenAuth(HTTPAuth):
         self.verify_token_callback = f
         return f
 
-    def authenticate(self, auth, stored_password):
+    def authenticate(self, request, auth, stored_password):
         if auth:
-            token = auth['token']
+            token = auth["token"]
         else:
             token = ""
         if self.verify_token_callback:
@@ -273,12 +279,11 @@ class MultiAuth(object):
 
     def login_required(self, f):
         @wraps(f)
-        def decorated(*args, **kwargs):
+        def decorated(request, *args, **kwargs):
             selected_auth = None
-            if 'Authorization' in request.headers:
+            if "Authorization" in request.headers:
                 try:
-                    scheme, creds = request.headers['Authorization'].split(
-                        None, 1)
+                    scheme, creds = request.headers["Authorization"].split(None, 1)
                 except ValueError:
                     # malformed Authorization header
                     pass
@@ -289,5 +294,6 @@ class MultiAuth(object):
                             break
             if selected_auth is None:
                 selected_auth = self.main_auth
-            return selected_auth.login_required(f)(*args, **kwargs)
+            return selected_auth.login_required(f)(request, *args, **kwargs)
+
         return decorated

@@ -1,9 +1,11 @@
-Flask-HTTPAuth
+Sanic-HTTPAuth
 ==============
 
 [![Build Status](https://travis-ci.org/miguelgrinberg/Flask-HTTPAuth.png?branch=master)](https://travis-ci.org/miguelgrinberg/Flask-HTTPAuth)
 
-Simple extension that provides Basic and Digest HTTP authentication for Flask routes.
+This a fork of [Flask-HTTPAuth](https://github.com/miguelgrinberg/Flask-HTTPAuth) for Sanic. It is a simple extension that provides Basic and Digest HTTP authentication for Sanic routes.
+
+Still a work in progress, contributions are welcome.
 
 Installation
 ------------

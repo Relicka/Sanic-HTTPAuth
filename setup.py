@@ -1,42 +1,42 @@
 """
-Flask-HTTPAuth
+Sanic-HTTPAuth
 --------------
 
-Basic and Digest HTTP authentication for Flask routes.
+Basic and Digest HTTP authentication for Sanic routes.
 """
 import re
 from setuptools import setup
 
-with open('flask_httpauth.py', 'r') as f:
-    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-                        f.read(), re.MULTILINE).group(1)
+with open("sanic_httpauth.py", "r") as f:
+    version = re.search(
+        r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', f.read(), re.MULTILINE
+    ).group(1)
 
 setup(
-    name='Flask-HTTPAuth',
+    name="Sanic-HTTPAuth",
     version=version,
-    url='http://github.com/miguelgrinberg/flask-httpauth/',
-    license='MIT',
-    author='Miguel Grinberg',
-    author_email='miguelgrinberg50@gmail.com',
-    description='Basic and Digest HTTP authentication for Flask routes',
+    url="http://github.com/MihaiBalint/sanic-httpauth/",
+    license="MIT",
+    author="Miguel Grinberg",
+    author_email="miguelgrinberg50@gmail.com",
+    description="Basic and Digest HTTP authentication for Sanic routes",
     long_description=__doc__,
-    py_modules=['flask_httpauth'],
+    py_modules=["sanic_httpauth"],
     zip_safe=False,
     include_package_data=True,
-    platforms='any',
-    install_requires=[
-        'Flask'
-    ],
+    platforms="any",
+    install_requires=["sanic", ""],
+    extras_require={"session": ["sanic_session"]},
     test_suite="tests",
     classifiers=[
-        'Environment :: Web Environment',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: OS Independent',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 3',
-        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
-        'Topic :: Software Development :: Libraries :: Python Modules'
-    ]
+        "Environment :: Web Environment",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3",
+        "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
 )
