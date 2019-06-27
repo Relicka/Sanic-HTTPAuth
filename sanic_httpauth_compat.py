@@ -1,5 +1,9 @@
 # Borrowed code from werkzeug: https://github.com/pallets/werkzeug
 import hmac
+import logging
+import sanic.response
+
+log = logging.getLogger(__name__)
 
 _builtin_safe_str_cmp = getattr(hmac, "compare_digest", None)
 
@@ -52,12 +56,3 @@ class Authorization(object):
 
     def __setitem__(self, key, value):
         raise NotImplementedError()
-
-
-def make_response(res):
-    if isinstance(res, sanic.response.BaseHTTPResponse):
-        return res
-    elif isinstance(res, tuple) or isinstance(res, list):
-        return sanic.response.HTTPResponse(*res)
-    else:
-        return sanic.response.HTTPResponse(res)

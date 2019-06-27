@@ -7,16 +7,17 @@ This module provides Basic and Digest HTTP authentication for Flask routes.
 :copyright: (C) 2014 by Miguel Grinberg.
 :license:   MIT, see LICENSE for more details.
 """
+import logging
 
-import sanic.response
 from functools import wraps
 from hashlib import md5
 from random import Random, SystemRandom
-from sanic_httpauth_compat import safe_str_cmp, make_response, Authorization
+from sanic.response import text
+
+from sanic_httpauth_compat import safe_str_cmp, Authorization
 
 __version__ = "3.3.1dev"
-
-# Compatibility code added to facilitate merging of upstream changes
+log = logging.getLogger(__name__)
 
 
 class HTTPAuth(object):
@@ -30,7 +31,7 @@ class HTTPAuth(object):
             return None
 
         def default_auth_error(request):
-            return "Unauthorized Access"
+            return text("Unauthorized Access", status=401)
 
         self.get_password(default_get_password)
         self.error_handler(default_auth_error)
@@ -43,7 +44,7 @@ class HTTPAuth(object):
         @wraps(f)
         def decorated(request, *args, **kwargs):
             res = f(request, *args, **kwargs)
-            res = make_response(res)
+
             if res.status == 200:
                 # if user didn't set status code, use 401
                 res.status = 401
@@ -294,6 +295,7 @@ class MultiAuth(object):
                             break
             if selected_auth is None:
                 selected_auth = self.main_auth
+
             return selected_auth.login_required(f)(request, *args, **kwargs)
 
         return decorated

@@ -25,8 +25,11 @@ setup(
     zip_safe=False,
     include_package_data=True,
     platforms="any",
-    install_requires=["sanic", ""],
-    extras_require={"session": ["sanic_session"]},
+    install_requires=["sanic"],
+    extras_require={
+        "session": ["sanic_session"],
+        "test": ["sanic_session", "sanic-cors", "ipdb"],
+    },
     test_suite="tests",
     classifiers=[
         "Environment :: Web Environment",

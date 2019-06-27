@@ -1,13 +1,17 @@
 import unittest
 from sanic import Sanic
 from sanic_httpauth import HTTPTokenAuth
+from sanic_cors import CORS
+from sanic.response import text
 
 
 class HTTPAuthTestCase(unittest.TestCase):
     def setUp(self):
         app = Sanic(__name__)
         app.config["SECRET_KEY"] = "my secret"
+        app.config["CORS_AUTOMATIC_OPTIONS"] = True
 
+        CORS(app)
         token_auth = HTTPTokenAuth("MyToken")
 
         @token_auth.verify_token
@@ -16,16 +20,18 @@ class HTTPAuthTestCase(unittest.TestCase):
 
         @token_auth.error_handler
         def error_handler(request):
-            return "error", 401, {"WWW-Authenticate": 'MyToken realm="Foo"'}
+            return text(
+                "error", status=401, headers={"WWW-Authenticate": 'MyToken realm="Foo"'}
+            )
 
         @app.route("/")
         def index(request):
-            return "index"
+            return text("index")
 
         @app.route("/protected")
         @token_auth.login_required
         def token_auth_route(request):
-            return "token_auth"
+            return text("token_auth")
 
         self.app = app
         self.token_auth = token_auth
@@ -46,13 +52,13 @@ class HTTPAuthTestCase(unittest.TestCase):
         rq, response = self.client.get(
             "/protected", headers={"Authorization": "MyToken this-is-the-token!"}
         )
-        self.assertEqual(response.data.decode("utf-8"), "token_auth")
+        self.assertEqual(response.content.decode("utf-8"), "token_auth")
 
     def test_token_auth_login_valid_different_case(self):
         rq, response = self.client.get(
             "/protected", headers={"Authorization": "mytoken this-is-the-token!"}
         )
-        self.assertEqual(response.data.decode("utf-8"), "token_auth")
+        self.assertEqual(response.content.decode("utf-8"), "token_auth")
 
     def test_token_auth_login_invalid_token(self):
         rq, response = self.client.get(
@@ -84,7 +90,7 @@ class HTTPAuthTestCase(unittest.TestCase):
         @self.app.route("/protected2")
         @token_auth2.login_required
         def token_auth_route2(request):
-            return "token_auth2"
+            return text("token_auth2")
 
         rq, response = self.client.get(
             "/protected2", headers={"Authorization": "Token this-is-the-token!"}
