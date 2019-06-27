@@ -7,59 +7,62 @@ This example demonstrates how to combine two authentication methods using the
 The root URL for this application can be accessed via basic auth, providing
 username and password, or via token auth, providing a bearer JWS token.
 """
-from flask import Flask, g
-from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth, MultiAuth
-from werkzeug.security import generate_password_hash, check_password_hash
+import hashlib
+from sanic import Sanic
+from sanic_httpauth import HTTPBasicAuth, HTTPTokenAuth, MultiAuth
 from itsdangerous import TimedJSONWebSignatureSerializer as JWS
 
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'top secret!'
-jws = JWS(app.config['SECRET_KEY'], expires_in=3600)
+app = Sanic(__name__)
+app.config["SECRET_KEY"] = "top secret!"
+jws = JWS(app.config["SECRET_KEY"], expires_in=3600)
 
 basic_auth = HTTPBasicAuth()
-token_auth = HTTPTokenAuth('Bearer')
+token_auth = HTTPTokenAuth("Bearer")
 multi_auth = MultiAuth(basic_auth, token_auth)
 
 
+def hash_password(salt, password):
+    salted = password + salt
+    return hashlib.sha512(salted.encode("utf8")).hexdigest()
+
+
+app_salt = "APP_SECRET - don't do this in production"
 users = {
-    "john": generate_password_hash("hello"),
-    "susan": generate_password_hash("bye")
+    "john": hash_password(app_salt, "hello"),
+    "susan": hash_password(app_salt, "bye"),
 }
 
 for user in users.keys():
-    token = jws.dumps({'username': user})
-    print('*** token for {}: {}\n'.format(user, token))
+    token = jws.dumps({"username": user})
+    print("*** token for {}: {}\n".format(user, token))
 
 
 @basic_auth.verify_password
 def verify_password(username, password):
-    g.user = None
     if username in users:
-        if check_password_hash(users.get(username), password):
-            g.user = username
-            return True
+        return users.get(username) == hash_password(app_salt, password)
     return False
 
 
 @token_auth.verify_token
 def verify_token(token):
-    g.user = None
     try:
-        data = jws.loads(token)
+        return "username" in token_serializer.loads(token)
     except:  # noqa: E722
         return False
-    if 'username' in data:
-        g.user = data['username']
-        return True
-    return False
 
 
-@app.route('/')
+@app.route("/")
 @multi_auth.login_required
-def index():
-    return "Hello, %s!" % g.user
+def index(request):
+    username = basic_auth.username(request)
+    if not username:
+        data = token_serializer.loads(token_auth.token(request))
+        username = data["username"]
+
+    return f"Hello, {username}!"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run()

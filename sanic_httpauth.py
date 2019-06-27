@@ -1,9 +1,10 @@
 """
-flask_httpauth
+sanic_httpauth
 ==================
 
-This module provides Basic and Digest HTTP authentication for Flask routes.
+This module provides Basic and Digest HTTP authentication for Sanic routes.
 
+:copyright: (C) 2019 by Mihai Balint.
 :copyright: (C) 2014 by Miguel Grinberg.
 :license:   MIT, see LICENSE for more details.
 """
@@ -17,7 +18,7 @@ from sanic.response import text
 from sanic_httpauth_compat import safe_str_cmp, Authorization
 from sanic_httpauth_compat import parse_authorization_header
 
-__version__ = "3.3.1dev"
+__version__ = "0.1.0"
 log = logging.getLogger(__name__)
 
 
@@ -271,6 +272,11 @@ class HTTPTokenAuth(HTTPAuth):
         if self.verify_token_callback:
             return self.verify_token_callback(token)
         return False
+
+    def token(self, request):
+        if not request["authorization"]:
+            return ""
+        return request["authorization"].get("token")
 
 
 class MultiAuth(object):
