@@ -1,7 +1,7 @@
 import unittest
 from hashlib import md5 as basic_md5
 from sanic import Sanic
-from sanic_session import Session
+from sanic_session import Session, InMemorySessionInterface
 from sanic_httpauth import HTTPDigestAuth
 from sanic.response import text
 
@@ -24,7 +24,7 @@ class HTTPAuthTestCase(unittest.TestCase):
         app = Sanic(__name__)
         app.config["SECRET_KEY"] = "my secret"
 
-        Session(app)
+        Session(app, interface=InMemorySessionInterface(cookie_name="test_session"))
         digest_auth_ha1_pw = HTTPDigestAuth(use_ha1_pw=True)
 
         @digest_auth_ha1_pw.get_password
@@ -72,5 +72,6 @@ class HTTPAuthTestCase(unittest.TestCase):
                     d["realm"], d["nonce"], auth_response, d["opaque"]
                 )
             },
+            cookies={"test_session": response.cookies.get("test_session")},
         )
         self.assertEqual(response.content, b"digest_auth_ha1_pw:john")
