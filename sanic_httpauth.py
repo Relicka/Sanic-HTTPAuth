@@ -15,6 +15,7 @@ from random import Random, SystemRandom
 from sanic.response import text
 
 from sanic_httpauth_compat import safe_str_cmp, Authorization
+from sanic_httpauth_compat import parse_authorization_header
 
 __version__ = "3.3.1dev"
 log = logging.getLogger(__name__)
@@ -59,13 +60,11 @@ class HTTPAuth(object):
         return '{0} realm="{1}"'.format(self.scheme, self.realm)
 
     def get_auth(self, request):
-        if "Authorization" not in request.headers:
-            return None
-
-        auth = None
+        auth = parse_authorization_header(request.headers.get("Authorization"))
         try:
-            auth_type, token = request.headers["Authorization"].split(None, 1)
-            auth = Authorization(auth_type, {"token": token})
+            if auth is None and "Authorization" in request.headers:
+                auth_type, value = request.headers["Authorization"].split(None, 1)
+                auth = Authorization(auth_type, {"token": value})
         except ValueError:
             # The Authorization header is either empty or has no token
             pass
@@ -90,8 +89,9 @@ class HTTPAuth(object):
         @wraps(f)
         def decorated(request, *args, **kwargs):
             auth = self.get_auth(request)
+            request["authorization"] = auth
 
-            # Flask normally handles OPTIONS requests on its own, but in the
+            # Sanic-CORS normally handles OPTIONS requests on its own, but in the
             # case it is configured to forward those to the application, we
             # need to ignore authentication headers and let the request through
             # to avoid unwanted interactions with CORS.
@@ -105,10 +105,10 @@ class HTTPAuth(object):
 
         return decorated
 
-    def username(self):
-        if not request.authorization:
+    def username(self, request):
+        if not request["authorization"]:
             return ""
-        return request.authorization.username
+        return request["authorization"].username
 
 
 class HTTPBasicAuth(HTTPAuth):

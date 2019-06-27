@@ -1,7 +1,7 @@
 import unittest
 from sanic import Sanic
-from sanic_httpauth import HTTPTokenAuth
 from sanic_cors import CORS
+from sanic_httpauth import HTTPTokenAuth
 from sanic.response import text
 
 
