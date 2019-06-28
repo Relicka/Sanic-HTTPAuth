@@ -1,5 +1,14 @@
 # Flask-HTTPAuth change log
 
+**Release 0.1.2** - 2019-06-28
+- Fix @auth.login_required when applied on instance methods
+
+**Release 0.1.1** - 2019-06-27
+- Update README and examples
+
+**Release 0.1.0** - 2019-06-27
+- Replace Flask with Sanic
+
 **Release 3.3.0** - 2019-05-19
 
 - Use constant time string comparisons [#82](https://github.com/miguelgrinberg/Flask-HTTPAuth/issues/82) ([commit1](https://github.com/miguelgrinberg/Flask-HTTPAuth/commit/788d42ea9c4d536af628e0e7f4cb1fb84fc59a8e), [commit2](https://github.com/miguelgrinberg/Flask-HTTPAuth/commit/97f0e641a6d5eb34054de1ca255e932313d441ee)) (thanks **Brendan Long**!)

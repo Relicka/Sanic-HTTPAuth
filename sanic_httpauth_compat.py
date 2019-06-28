@@ -5,6 +5,7 @@ import logging
 import sanic.response
 import sys
 
+from sanic.request import Request
 from urllib.request import parse_http_list as _parse_list_header
 
 log = logging.getLogger(__name__)
@@ -292,3 +293,12 @@ def parse_authorization_header(value):
             if not auth_map.get("nc") or not auth_map.get("cnonce"):
                 return
         return Authorization("digest", auth_map)
+
+
+def get_request(*args, **kwargs):
+    for a in args:
+        if isinstance(a, Request):
+            return a
+    for k, v in kwargs.items():
+        if isinstance(v, Request):
+            return v

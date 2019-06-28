@@ -16,9 +16,9 @@ from random import Random, SystemRandom
 from sanic.response import text
 
 from sanic_httpauth_compat import safe_str_cmp, Authorization
-from sanic_httpauth_compat import parse_authorization_header
+from sanic_httpauth_compat import parse_authorization_header, get_request
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 log = logging.getLogger(__name__)
 
 
@@ -44,8 +44,9 @@ class HTTPAuth(object):
 
     def error_handler(self, f):
         @wraps(f)
-        def decorated(request, *args, **kwargs):
-            res = f(request, *args, **kwargs)
+        def decorated(*args, **kwargs):
+            request = get_request(*args, **kwargs)
+            res = f(*args, **kwargs)
 
             if res.status == 200:
                 # if user didn't set status code, use 401
@@ -88,7 +89,9 @@ class HTTPAuth(object):
 
     def login_required(self, f):
         @wraps(f)
-        def decorated(request, *args, **kwargs):
+        def decorated(*args, **kwargs):
+            request = get_request(*args, **kwargs)
+
             auth = self.get_auth(request)
             request["authorization"] = auth
 
@@ -102,7 +105,7 @@ class HTTPAuth(object):
                 if not self.authenticate(request, auth, password):
                     return self.auth_error_callback(request)
 
-            return f(request, *args, **kwargs)
+            return f(*args, **kwargs)
 
         return decorated
 
@@ -286,7 +289,8 @@ class MultiAuth(object):
 
     def login_required(self, f):
         @wraps(f)
-        def decorated(request, *args, **kwargs):
+        def decorated(*args, **kwargs):
+            request = get_request(*args, **kwargs)
             selected_auth = None
             if "Authorization" in request.headers:
                 try:
@@ -302,6 +306,6 @@ class MultiAuth(object):
             if selected_auth is None:
                 selected_auth = self.main_auth
 
-            return selected_auth.login_required(f)(request, *args, **kwargs)
+            return selected_auth.login_required(f)(*args, **kwargs)
 
         return decorated
