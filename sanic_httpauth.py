@@ -18,7 +18,7 @@ from sanic.response import text
 from sanic_httpauth_compat import safe_str_cmp, Authorization
 from sanic_httpauth_compat import parse_authorization_header
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 log = logging.getLogger(__name__)
 
 

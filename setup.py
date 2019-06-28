@@ -12,6 +12,9 @@ with open("sanic_httpauth.py", "r") as f:
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', f.read(), re.MULTILINE
     ).group(1)
 
+with open("README.md", encoding="utf-8") as f:
+    long_description = f.read()
+
 setup(
     name="Sanic-HTTPAuth",
     version=version,
@@ -20,8 +23,9 @@ setup(
     author="Mihai Balint",
     author_email="balint.mihai@gmail.com",
     description="Basic, Digest and Bearer token authentication for Sanic routes",
-    long_description=__doc__,
-    py_modules=["sanic_httpauth"],
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    py_modules=["sanic_httpauth", "sanic_httpauth_compat"],
     zip_safe=False,
     include_package_data=True,
     platforms="any",
