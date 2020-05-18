@@ -93,7 +93,7 @@ class HTTPAuth(object):
             request = get_request(*args, **kwargs)
 
             auth = self.get_auth(request)
-            request["authorization"] = auth
+            request.headers["authorization"] = auth
 
             # Sanic-CORS normally handles OPTIONS requests on its own, but in the
             # case it is configured to forward those to the application, we
